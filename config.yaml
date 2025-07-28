@@ -1,0 +1,13 @@
+# config.yaml
+
+# 缓存有效期（小时）。在此期间重复请求将优先使用本地缓存。
+CACHE_DURATION_HOURS: 24
+
+# 目标网站的基础URL。
+BASE_URL: "https://www.uscardforum.com"
+
+# --- 网络请求重试配置 ---
+# 最大重试次数
+MAX_RETRIES: 5
+# 重试之间的退避因子。等待时间 = BACKOFF_FACTOR * (2 ** (重试次数 - 1))
+BACKOFF_FACTOR: 1
