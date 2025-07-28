@@ -16,7 +16,7 @@
 
 
 # example analysis
-以下是用户开卡需求与开卡历史记录举例
+以下是一个虚构的用户开卡需求与开卡历史记录举例
 ```
 personal or biz? personal
 approved or rejected or pop-up window? 不知道
@@ -26,7 +26,7 @@ had csp before? how long ago did you get the sign up bonus? Yes, 2021
 had csr before? how long ago did you get the sign up bonus? No
 ```
 
-以下是论坛的DP举例
+以下是虚构的论坛的DP举例
 ```
 dp1:
 personal or biz? biz
@@ -54,6 +54,7 @@ although dp1 is an approved DP, it is a biz card, user is asking for a personal 
 dp2:
 ...
 ```
+以上是一个虚构的例子
 
 
 
@@ -66,10 +67,9 @@ dp2:
 
 
 # User credit card application history and intention
-以下是用户的开卡需求，以及开卡历史记录，你需要根据DP判断此用户获得此信用卡的可能性
+以下是用户实际的开卡需求，以及开卡历史记录，你需要根据DP判断此用户获得此信用卡的可能性
 
 {{user_credit_history}}
-
 
 # DP(data point) input
 DP(data point，来自论坛回复）数据以文件的形式附上，也就是你需要参考的数据
