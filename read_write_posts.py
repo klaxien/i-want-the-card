@@ -26,10 +26,10 @@ def show_progress(current, total, bar_length=30):
     sys.stdout.flush()
 
 
-def clean_post_data(post):
+def clean_post_data(base_url, post):
     """清理单个帖子字典。"""
     raw_content = post.get("cooked", "")
-    cleaned_content = re.sub(r"<[^>]+>", "", raw_content).strip()
+    cleaned_content = re.sub(r"<blockquote.*?/blockquote>|<[^>]+>", "", raw_content, flags=re.DOTALL).strip()
     return {
         "post_number": post.get("post_number"),
         "user_id": post.get("user_id"),
@@ -37,6 +37,7 @@ def clean_post_data(post):
         "created_at": post.get("created_at"),
         "reply_to_post_number": post.get("reply_to_post_number"),
         "reply_content": cleaned_content,
+        "original_post_url": f'{base_url}/t/topic/{post.get("topic_id")}/{post.get("post_number")}'
     }
 
 
@@ -48,7 +49,7 @@ def get_main_post(all_posts):
     return None
 
 
-def group_and_sort_replies_by_user(all_posts):
+def group_and_sort_replies_by_user(base_url, all_posts):
     """按用户分组和排序回复。"""
     replies_only = [p for p in all_posts if p.get("post_number", 0) > 1]
     users = {}
@@ -61,7 +62,7 @@ def group_and_sort_replies_by_user(all_posts):
                 "replies": [],
                 "first_post_num": float("inf"),
             }
-        cleaned_reply = clean_post_data(post)
+        cleaned_reply = clean_post_data(base_url, post)
         users[user_id]["replies"].append(cleaned_reply)
         if cleaned_reply["post_number"] < users[user_id]["first_post_num"]:
             users[user_id]["first_post_num"] = cleaned_reply["post_number"]
@@ -73,13 +74,13 @@ def group_and_sort_replies_by_user(all_posts):
     return sorted_users_list
 
 
-def _write_derived_files(topic_id, all_posts_raw):
+def _write_derived_files(topic_id,base_url, all_posts_raw):
     """写入派生文件。"""
     try:
         if not os.path.exists(CACHE_DIR):
             os.makedirs(CACHE_DIR)
 
-        grouped_data = group_and_sort_replies_by_user(all_posts_raw)
+        grouped_data = group_and_sort_replies_by_user(base_url, all_posts_raw)
         grouped_path = os.path.join(CACHE_DIR, f"{topic_id}_ai_input_file.json")
         readable_path = os.path.join(CACHE_DIR, f"{topic_id}_readable.txt")
 
@@ -185,7 +186,7 @@ def get_all_posts(base_url, topic_id, config):
             return None
 
     if all_posts_raw:
-        _write_derived_files(topic_id, all_posts_raw)
+        _write_derived_files(topic_id,base_url, all_posts_raw)
 
     return all_posts_raw
 

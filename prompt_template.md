@@ -51,7 +51,7 @@ although dp1 is an approved DP, it is a biz card, user is asking for a personal 
 ```
 根据分析，你获批的可能性为: 30% ~ 40%
 以下是我做出判断所依据的dp的原始回复
-dp2:
+dp2（直达链接[original_post_url]）:
 ...
 ```
 以上是一个虚构的例子

@@ -61,6 +61,7 @@ def main():
 
     # --- 主要修改部分 ---
     print("\n请输入你的开卡需求以及信用记录 (可直接复制粘贴多行):")
+    print("\n推荐严格遵守对应DP贴的格式输入:")
     print("粘贴完成后，请按以下组合键结束输入:")
     print("  - Windows: Ctrl+Z 然后按 Enter")
     print("  - macOS / Linux: Ctrl+D")
@@ -88,7 +89,7 @@ def main():
     print("\n" + "=" * 25 + "\n  主贴内容预览\n" + "=" * 25)
     main_post_raw = get_main_post(all_posts_raw)
     if main_post_raw:
-        main_post_cleaned = clean_post_data(main_post_raw)
+        main_post_cleaned = clean_post_data(base_url=base_url, post=main_post_raw)
         print(
             f"作者: {main_post_cleaned.get('username')} (ID: {main_post_cleaned.get('user_id')})"
         )
