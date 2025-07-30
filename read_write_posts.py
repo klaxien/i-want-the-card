@@ -23,12 +23,14 @@ def get_internal_path(relative_path):
         base_path = os.path.abspath(".")
     return os.path.join(base_path, relative_path)
 
+
 def get_persistent_path(relative_path):
     """
+
     获取.exe文件旁边（外部）的持久化存储路径。
     用于创建缓存等不会被删除的文件/目录。
     """
-    if getattr(sys, 'frozen', False):
+    if getattr(sys, "frozen", False):
         # 如果是打包状态，获取可执行文件的目录
         base_path = os.path.dirname(sys.executable)
     else:
@@ -36,20 +38,11 @@ def get_persistent_path(relative_path):
         base_path = os.path.abspath(".")
     return os.path.join(base_path, relative_path)
 
+
 # --- Constants ---
 CACHE_DIR = get_persistent_path("cache")
 
-def show_progress(current, total, bar_length=30):
-    """在控制台显示一个进度条。"""
-    if total == 0:
-        percent = 1.0
-    else:
-        percent = current / total
-    filled_len = int(round(bar_length * percent))
-    bar = "■" * filled_len + "□" * (bar_length - filled_len)
-    percent_display = int(percent * 100)
-    sys.stdout.write(f"\r下载进度: {bar} ({current}/{total}, {percent_display}%) ")
-    sys.stdout.flush()
+# show_progress 函数已被移除，其功能由GUI进度条替代
 
 
 def clean_post_data(base_url, post):
@@ -129,7 +122,9 @@ def _write_derived_files(topic_id, base_url, all_posts_raw):
         print(f"错误: 写入派生缓存文件失败: {e}")
 
 
-def get_all_posts(base_url, topic_id, config):
+def get_all_posts(
+    base_url, topic_id, config, progress_callback=None
+):  # 新增 progress_callback
     """获取所有帖子，使用正确的分页逻辑。"""
     cache_hours = config.get("CACHE_DURATION_HOURS", 24)
     max_retries = config.get("MAX_RETRIES", 5)
@@ -142,18 +137,22 @@ def get_all_posts(base_url, topic_id, config):
             file_mod_time = os.path.getmtime(raw_cache_path)
             age_seconds = time.time() - file_mod_time
             if age_seconds < (cache_hours * 3600):
-                print(f"缓存命中。正在从 '{raw_cache_path}' 加载帖子。")
+                print(
+                    f"缓存命中。正在从 '{os.path.basename(raw_cache_path)}' 加载帖子。"
+                )
                 with open(raw_cache_path, "r", encoding="utf-8") as f:
                     all_posts_raw = json.load(f)
+                # 如果从缓存加载，也更新一下进度条到100%
+                if progress_callback:
+                    progress_callback(1, 1)  # (current, total)
             else:
-                print("原始缓存文件已过期，将从网络重新获取。")
+                print("缓存文件已过期，将从网络重新获取。")
         except (IOError, json.JSONDecodeError) as e:
-            print(
-                f"警告: 无法读取或解析缓存文件 '{raw_cache_path}' ({e})。将从网络获取。"
-            )
+            print(f"警告: 无法读取或解析缓存文件 ({e})。将从网络获取。")
 
     if not all_posts_raw:
-        print(f"正在从网络获取 topic_id: {topic_id} 的所有帖子...")
+        # 用 sys.stdout.write 以避免被重定向器添加不必要的换行符
+        sys.stdout.write(f"正在从网络获取 topic_id: {topic_id} 的所有帖子...\n")
         fetched_posts = []
         page = 1
         total_posts_count = 0
@@ -172,34 +171,28 @@ def get_all_posts(base_url, topic_id, config):
                 for attempt in range(max_retries):
                     try:
                         response = scraper.get(url, timeout=15)
-                        response.raise_for_status()  # 检查 4xx 或 5xx 错误
-                        # 如果请求成功 (状态码 2xx)，则跳出重试循环
+                        response.raise_for_status()
                         break
                     except requests.exceptions.RequestException as e:
-                        # 检查是否为我们想要重试的特定服务器错误
                         is_retryable_http_error = isinstance(
                             e, requests.exceptions.HTTPError
                         ) and e.response.status_code in [500, 502, 504]
-                        # 检查是否为连接错误等 (非HTTP错误)
                         is_connection_error = not isinstance(
                             e, requests.exceptions.HTTPError
                         )
 
-                        # 如果是最后一次尝试，或错误不可重试，则直接抛出异常
                         if attempt == max_retries - 1 or not (
                             is_retryable_http_error or is_connection_error
                         ):
                             raise e
 
-                        # 执行退避等待
                         wait_time = backoff_factor * (2**attempt)
+                        # 使用 print 来输出到GUI日志
                         print(
-                            f"\n请求失败 ({str(e)}), {wait_time:.1f}秒后重试 (第 {attempt + 1}/{max_retries} 次)...",
-                            end="",
+                            f"请求失败 ({str(e)}), {wait_time:.1f}秒后重试 (第 {attempt + 1}/{max_retries} 次)..."
                         )
                         time.sleep(wait_time)
 
-                # 如果循环正常结束（即所有重试都失败了），response 会是 None，这里进行检查
                 if response is None:
                     print("\n错误：所有重试尝试均失败。")
                     return None
@@ -217,33 +210,36 @@ def get_all_posts(base_url, topic_id, config):
                     break
 
                 fetched_posts.extend(posts)
-                show_progress(len(fetched_posts), total_posts_count)
+
+                # 调用回调函数来更新GUI进度条
+                if progress_callback:
+                    progress_callback(len(fetched_posts), total_posts_count)
 
                 if len(fetched_posts) >= total_posts_count:
                     break
 
                 page += 1
-                time.sleep(0.2)  # 页面间的礼貌性延迟
+                time.sleep(0.2)
 
-            print()
+            # 确保进度条在循环结束后显示为100%
+            if progress_callback:
+                progress_callback(total_posts_count, total_posts_count)
 
             if fetched_posts:
                 all_posts_raw = fetched_posts
-
                 raw_cache_directory = os.path.dirname(raw_cache_path)
                 os.makedirs(raw_cache_directory, exist_ok=True)
-
                 with open(raw_cache_path, "w", encoding="utf-8") as f:
                     json.dump(all_posts_raw, f, ensure_ascii=False, indent=4)
-                print(f"成功将新的原始数据写入缓存: '{raw_cache_path}'")
+                print(
+                    f"\n成功将新的原始数据写入缓存: '{os.path.basename(raw_cache_path)}'"
+                )
 
-        # 捕获所有在循环中最终未能处理的异常
         except (
             requests.exceptions.RequestException,
             cloudscraper.exceptions.CloudflareException,
         ) as e:
-            print()
-            print(f"网络请求或解析错误: {e}")
+            print(f"\n网络请求或解析错误: {e}")
             if isinstance(e, cloudscraper.exceptions.CloudflareException):
                 print("检测到Cloudflare保护。Cloudscraper未能通过质询。")
             return None
@@ -255,15 +251,12 @@ def get_all_posts(base_url, topic_id, config):
 
 
 def generate_prompt(post_id, user_credit_history):
-    # 使用 get_internal_path 来查找 EXE 内部的模板
     template_path = get_internal_path("prompt_template.md")
     with open(template_path, "r", encoding="utf-8") as f:
         prompt_template = f.read()
         prompt = prompt_template.replace("{{user_credit_history}}", user_credit_history)
-
         if not os.path.exists(CACHE_DIR):
             os.makedirs(CACHE_DIR)
-
         with open(
             os.path.join(CACHE_DIR, f"{post_id}_prompt.md"), "w", encoding="utf-8"
         ) as f2:
