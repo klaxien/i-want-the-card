@@ -1,5 +1,6 @@
 # i-want-the-card
 
+A tool to help user analyze possibility of getting a credit card
 
 ## 打包
 
