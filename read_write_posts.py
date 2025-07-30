@@ -1,3 +1,5 @@
+# read_write_posts.py
+
 import time
 import os
 import json
@@ -27,7 +29,9 @@ def show_progress(current, total, bar_length=30):
 def clean_post_data(base_url, post):
     """清理单个帖子字典。"""
     raw_content = post.get("cooked", "")
-    cleaned_content = re.sub(r"<blockquote.*?/blockquote>|<[^>]+>", "", raw_content, flags=re.DOTALL).strip()
+    cleaned_content = re.sub(
+        r"<blockquote.*?/blockquote>|<[^>]+>", "", raw_content, flags=re.DOTALL
+    ).strip()
     return {
         "post_number": post.get("post_number"),
         "user_id": post.get("user_id"),
@@ -35,7 +39,7 @@ def clean_post_data(base_url, post):
         "created_at": post.get("created_at"),
         "reply_to_post_number": post.get("reply_to_post_number"),
         "reply_content": cleaned_content,
-        "original_post_url": f'{base_url}/t/topic/{post.get("topic_id")}/{post.get("post_number")}'
+        "original_post_url": f'{base_url}/t/topic/{post.get("topic_id")}/{post.get("post_number")}',
     }
 
 
@@ -72,7 +76,7 @@ def group_and_sort_replies_by_user(base_url, all_posts):
     return sorted_users_list
 
 
-def _write_derived_files(topic_id,base_url, all_posts_raw):
+def _write_derived_files(topic_id, base_url, all_posts_raw):
     """写入派生文件。"""
     try:
         if not os.path.exists(CACHE_DIR):
@@ -128,41 +132,47 @@ def get_all_posts(base_url, topic_id, config):
         page = 1
         total_posts_count = 0
 
-        scraper = cloudscraper.create_scraper() 
+        scraper = cloudscraper.create_scraper()
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
         }
         scraper.headers.update(headers)
-        
+
         try:
             while True:
                 url = f"{base_url}/t/{topic_id}.json?page={page}"
                 response = None
-                
+
                 for attempt in range(max_retries):
                     try:
                         response = scraper.get(url, timeout=15)
-                        response.raise_for_status() # 检查 4xx 或 5xx 错误
+                        response.raise_for_status()  # 检查 4xx 或 5xx 错误
                         # 如果请求成功 (状态码 2xx)，则跳出重试循环
-                        break 
+                        break
                     except requests.exceptions.RequestException as e:
                         # 检查是否为我们想要重试的特定服务器错误
-                        is_retryable_http_error = (
-                            isinstance(e, requests.exceptions.HTTPError) and
-                            e.response.status_code in [500, 502, 504]
-                        )
+                        is_retryable_http_error = isinstance(
+                            e, requests.exceptions.HTTPError
+                        ) and e.response.status_code in [500, 502, 504]
                         # 检查是否为连接错误等 (非HTTP错误)
-                        is_connection_error = not isinstance(e, requests.exceptions.HTTPError)
-                        
+                        is_connection_error = not isinstance(
+                            e, requests.exceptions.HTTPError
+                        )
+
                         # 如果是最后一次尝试，或错误不可重试，则直接抛出异常
-                        if attempt == max_retries - 1 or not (is_retryable_http_error or is_connection_error):
+                        if attempt == max_retries - 1 or not (
+                            is_retryable_http_error or is_connection_error
+                        ):
                             raise e
 
                         # 执行退避等待
-                        wait_time = backoff_factor * (2 ** attempt)
-                        print(f"\n请求失败 ({str(e)}), {wait_time:.1f}秒后重试 (第 {attempt + 1}/{max_retries} 次)...", end="")
+                        wait_time = backoff_factor * (2**attempt)
+                        print(
+                            f"\n请求失败 ({str(e)}), {wait_time:.1f}秒后重试 (第 {attempt + 1}/{max_retries} 次)...",
+                            end="",
+                        )
                         time.sleep(wait_time)
-                
+
                 # 如果循环正常结束（即所有重试都失败了），response 会是 None，这里进行检查
                 if response is None:
                     print("\n错误：所有重试尝试均失败。")
@@ -187,7 +197,7 @@ def get_all_posts(base_url, topic_id, config):
                     break
 
                 page += 1
-                time.sleep(0.2) # 页面间的礼貌性延迟
+                time.sleep(0.2)  # 页面间的礼貌性延迟
 
             print()
 
@@ -196,17 +206,20 @@ def get_all_posts(base_url, topic_id, config):
                 with open(raw_cache_path, "w", encoding="utf-8") as f:
                     json.dump(all_posts_raw, f, ensure_ascii=False, indent=4)
                 print(f"成功将新的原始数据写入缓存: '{raw_cache_path}'")
-        
+
         # 捕获所有在循环中最终未能处理的异常
-        except (requests.exceptions.RequestException, cloudscraper.exceptions.CloudflareException) as e:
+        except (
+            requests.exceptions.RequestException,
+            cloudscraper.exceptions.CloudflareException,
+        ) as e:
             print()
             print(f"网络请求或解析错误: {e}")
             if isinstance(e, cloudscraper.exceptions.CloudflareException):
-                 print("检测到Cloudflare保护。Cloudscraper未能通过质询。")
+                print("检测到Cloudflare保护。Cloudscraper未能通过质询。")
             return None
 
     if all_posts_raw:
-        _write_derived_files(topic_id,base_url, all_posts_raw)
+        _write_derived_files(topic_id, base_url, all_posts_raw)
 
     return all_posts_raw
 
