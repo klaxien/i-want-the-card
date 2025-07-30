@@ -1,13 +1,11 @@
-# read_write_posts.py
-
-import requests
 import time
 import os
 import json
 import re
 import sys
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
+
+import cloudscraper
+import requests.exceptions
 
 # --- Constants ---
 CACHE_DIR = "cache"
@@ -127,30 +125,51 @@ def get_all_posts(base_url, topic_id, config):
     if not all_posts_raw:
         print(f"正在从网络获取 topic_id: {topic_id} 的所有帖子...")
         fetched_posts = []
-        # --- 修正点 1: 分页从 1 开始 ---
         page = 1
         total_posts_count = 0
 
-        session = requests.Session()
+        scraper = cloudscraper.create_scraper() 
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
         }
-        session.headers.update(headers)
-        retries = Retry(
-            total=max_retries,
-            backoff_factor=backoff_factor,
-            status_forcelist=[500, 502, 503, 504],
-        )
-        session.mount("https://", HTTPAdapter(max_retries=retries))
-
+        scraper.headers.update(headers)
+        
         try:
             while True:
                 url = f"{base_url}/t/{topic_id}.json?page={page}"
-                response = session.get(url, timeout=15)
-                response.raise_for_status()
+                response = None
+                
+                for attempt in range(max_retries):
+                    try:
+                        response = scraper.get(url, timeout=15)
+                        response.raise_for_status() # 检查 4xx 或 5xx 错误
+                        # 如果请求成功 (状态码 2xx)，则跳出重试循环
+                        break 
+                    except requests.exceptions.RequestException as e:
+                        # 检查是否为我们想要重试的特定服务器错误
+                        is_retryable_http_error = (
+                            isinstance(e, requests.exceptions.HTTPError) and
+                            e.response.status_code in [500, 502, 504]
+                        )
+                        # 检查是否为连接错误等 (非HTTP错误)
+                        is_connection_error = not isinstance(e, requests.exceptions.HTTPError)
+                        
+                        # 如果是最后一次尝试，或错误不可重试，则直接抛出异常
+                        if attempt == max_retries - 1 or not (is_retryable_http_error or is_connection_error):
+                            raise e
+
+                        # 执行退避等待
+                        wait_time = backoff_factor * (2 ** attempt)
+                        print(f"\n请求失败 ({str(e)}), {wait_time:.1f}秒后重试 (第 {attempt + 1}/{max_retries} 次)...", end="")
+                        time.sleep(wait_time)
+                
+                # 如果循环正常结束（即所有重试都失败了），response 会是 None，这里进行检查
+                if response is None:
+                    print("\n错误：所有重试尝试均失败。")
+                    return None
+
                 data = response.json()
 
-                # --- 修正点 2: 检查 page 是否为 1 ---
                 if page == 1:
                     total_posts_count = data.get("posts_count", 0)
                     if total_posts_count == 0:
@@ -168,21 +187,22 @@ def get_all_posts(base_url, topic_id, config):
                     break
 
                 page += 1
-                time.sleep(0.2)
+                time.sleep(0.2) # 页面间的礼貌性延迟
 
             print()
 
             if fetched_posts:
                 all_posts_raw = fetched_posts
-                if not os.path.exists(CACHE_DIR):
-                    os.makedirs(CACHE_DIR)
                 with open(raw_cache_path, "w", encoding="utf-8") as f:
                     json.dump(all_posts_raw, f, ensure_ascii=False, indent=4)
                 print(f"成功将新的原始数据写入缓存: '{raw_cache_path}'")
-
-        except requests.exceptions.RequestException as e:
+        
+        # 捕获所有在循环中最终未能处理的异常
+        except (requests.exceptions.RequestException, cloudscraper.exceptions.CloudflareException) as e:
             print()
             print(f"网络请求或解析错误: {e}")
+            if isinstance(e, cloudscraper.exceptions.CloudflareException):
+                 print("检测到Cloudflare保护。Cloudscraper未能通过质询。")
             return None
 
     if all_posts_raw:
