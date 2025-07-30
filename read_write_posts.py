@@ -5,7 +5,7 @@ import os
 import json
 import re
 import sys
-
+import certifi
 import cloudscraper
 import requests.exceptions
 
@@ -179,7 +179,7 @@ def get_all_posts(
 
                 for attempt in range(max_retries):
                     try:
-                        response = scraper.get(url, timeout=15)
+                        response = scraper.get(url, timeout=15, verify=certifi.where())
                         response.raise_for_status()
                         break
                     except requests.exceptions.RequestException as e:
