@@ -253,8 +253,9 @@ class App:
             # 打印详细错误到日志窗口
             print(f"\n发生未处理的严重错误: {e}")
             traceback.print_exc()
+            # 修正 lambda 函数，将 e 作为默认参数传入以立即捕获其值
             self.queue.put(
-                lambda: self.show_message(
+                lambda e=e: self.show_message(
                     "严重错误",
                     f"发生未处理的错误，请查看日志窗口获取详情。\n\n错误: {e}",
                     "error",

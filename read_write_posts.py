@@ -26,16 +26,25 @@ def get_internal_path(relative_path):
 
 def get_persistent_path(relative_path):
     """
-
-    获取.exe文件旁边（外部）的持久化存储路径。
+    获取.exe或.app文件旁边（外部）的持久化存储路径。
     用于创建缓存等不会被删除的文件/目录。
     """
     if getattr(sys, "frozen", False):
-        # 如果是打包状态，获取可执行文件的目录
-        base_path = os.path.dirname(sys.executable)
+        # 如果是打包状态 (frozen)
+        if sys.platform == "darwin":
+            # 对于 macOS, sys.executable 在 .app 包的内部
+            # 例如: /path/to/AppName.app/Contents/MacOS/AppName
+            # 我们需要回到 .app 文件所在的目录，也就是向上三级
+            base_path = os.path.abspath(
+                os.path.join(os.path.dirname(sys.executable), "..", "..", "..")
+            )
+        else:
+            # 对于 Windows 或 Linux，可执行文件通常与资源文件在同一目录
+            base_path = os.path.dirname(sys.executable)
     else:
-        # 如果是开发环境，获取当前工作目录
+        # 如果是开发环境（非打包状态）
         base_path = os.path.abspath(".")
+
     return os.path.join(base_path, relative_path)
 
 
