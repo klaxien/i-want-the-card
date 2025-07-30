@@ -6,7 +6,7 @@ A tool to help user analyze possibility of getting a credit card
 
 windows
 ```
-pyinstaller run.py --name "NiTanPreapproval" --onefile `
+pyinstaller run.py --name "NiTanPreapproval" --onefile --windowed `
 --icon=resources\icon-windows.ico `
 --add-data "config.yaml;." `
 --add-data "prompt_template.md;."
