@@ -8,16 +8,19 @@ from read_write_posts import (
     get_main_post,
     generate_prompt,
     clean_post_data,
+    get_persistent_path,
 )
 
 
 def load_config(path="config.yaml"):
     """加载并验证YAML配置文件。"""
+    config_path = get_persistent_path(path)
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(config_path, "r", encoding="utf-8") as f:
             config = yaml.safe_load(f)
     except (IOError, yaml.YAMLError) as e:
-        print(f"错误: 无法加载或解析配置文件 '{path}': {e}")
+        # 更新错误提示，显示正确的路径
+        print(f"错误: 无法加载或解析配置文件 '{config_path}': {e}")
         sys.exit(1)
 
     # (验证逻辑保持不变)

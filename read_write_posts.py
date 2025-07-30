@@ -9,9 +9,35 @@ import sys
 import cloudscraper
 import requests.exceptions
 
-# --- Constants ---
-CACHE_DIR = "cache"
 
+def get_internal_path(relative_path):
+    """
+    获取打包到.exe内部的资源的路径。
+    运行时会被解压到临时目录。
+    """
+    try:
+        # PyInstaller 创建一个临时文件夹，并将路径存储在 _MEIPASS 中
+        base_path = sys._MEIPASS
+    except Exception:
+        # 在开发环境中，_MEIPASS 不存在，使用当前文件所在目录
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+
+def get_persistent_path(relative_path):
+    """
+    获取.exe文件旁边（外部）的持久化存储路径。
+    用于创建缓存等不会被删除的文件/目录。
+    """
+    if getattr(sys, 'frozen', False):
+        # 如果是打包状态，获取可执行文件的目录
+        base_path = os.path.dirname(sys.executable)
+    else:
+        # 如果是开发环境，获取当前工作目录
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+
+# --- Constants ---
+CACHE_DIR = get_persistent_path("cache")
 
 def show_progress(current, total, bar_length=30):
     """在控制台显示一个进度条。"""
@@ -203,6 +229,10 @@ def get_all_posts(base_url, topic_id, config):
 
             if fetched_posts:
                 all_posts_raw = fetched_posts
+
+                raw_cache_directory = os.path.dirname(raw_cache_path)
+                os.makedirs(raw_cache_directory, exist_ok=True)
+
                 with open(raw_cache_path, "w", encoding="utf-8") as f:
                     json.dump(all_posts_raw, f, ensure_ascii=False, indent=4)
                 print(f"成功将新的原始数据写入缓存: '{raw_cache_path}'")
@@ -225,9 +255,15 @@ def get_all_posts(base_url, topic_id, config):
 
 
 def generate_prompt(post_id, user_credit_history):
-    with open("prompt_template.md", "r", encoding="utf-8") as f:
+    # 使用 get_internal_path 来查找 EXE 内部的模板
+    template_path = get_internal_path("prompt_template.md")
+    with open(template_path, "r", encoding="utf-8") as f:
         prompt_template = f.read()
         prompt = prompt_template.replace("{{user_credit_history}}", user_credit_history)
+
+        if not os.path.exists(CACHE_DIR):
+            os.makedirs(CACHE_DIR)
+
         with open(
             os.path.join(CACHE_DIR, f"{post_id}_prompt.md"), "w", encoding="utf-8"
         ) as f2:
