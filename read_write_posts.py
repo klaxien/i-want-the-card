@@ -173,7 +173,7 @@ def get_all_posts(
             headers = {
                 "User-Agent": user_agent
             }
-        scraper.headers.update(headers)
+            scraper.headers.update(headers)
 
         try:
             while True:
