@@ -11,3 +11,11 @@ BASE_URL: "https://www.uscardforum.com"
 MAX_RETRIES: 5
 # 重试之间的退避因子。等待时间 = BACKOFF_FACTOR * (2 ** (重试次数 - 1))
 BACKOFF_FACTOR: 1
+
+
+# 是否启用自定义 User-Agent (true / false)
+EnableCustomUserAgent: true
+
+# 自定义的 User-Agent 字符串。仅在 EnableCustomUserAgent 为 true 时生效
+# 如果提示无法抓取帖子，可以尝试更改这个
+CustomUserAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"

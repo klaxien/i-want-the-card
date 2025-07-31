@@ -132,7 +132,7 @@ def _write_derived_files(topic_id, base_url, all_posts_raw):
 
 
 def get_all_posts(
-    base_url, topic_id, config, progress_callback=None
+        base_url, topic_id, config, progress_callback=None
 ):  # 新增 progress_callback
     """获取所有帖子，使用正确的分页逻辑。"""
     cache_hours = config.get("CACHE_DURATION_HOURS", 24)
@@ -160,16 +160,19 @@ def get_all_posts(
             print(f"警告: 无法读取或解析缓存文件 ({e})。将从网络获取。")
 
     if not all_posts_raw:
-        # 用 sys.stdout.write 以避免被重定向器添加不必要的换行符
         sys.stdout.write(f"正在从网络获取 topic_id: {topic_id} 的所有帖子...\n")
         fetched_posts = []
         page = 1
         total_posts_count = 0
 
         scraper = cloudscraper.create_scraper()
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-        }
+
+        if config.get("EnableCustomUserAgent") and config.get("CustomUserAgent"):
+            user_agent = config["CustomUserAgent"]
+            print(f"已启用自定义 User-Agent: {user_agent}")
+            headers = {
+                "User-Agent": user_agent
+            }
         scraper.headers.update(headers)
 
         try:
@@ -191,12 +194,11 @@ def get_all_posts(
                         )
 
                         if attempt == max_retries - 1 or not (
-                            is_retryable_http_error or is_connection_error
+                                is_retryable_http_error or is_connection_error
                         ):
                             raise e
 
                         wait_time = backoff_factor * (2**attempt)
-                        # 使用 print 来输出到GUI日志
                         print(
                             f"请求失败 ({str(e)}), {wait_time:.1f}秒后重试 (第 {attempt + 1}/{max_retries} 次)..."
                         )
@@ -220,7 +222,6 @@ def get_all_posts(
 
                 fetched_posts.extend(posts)
 
-                # 调用回调函数来更新GUI进度条
                 if progress_callback:
                     progress_callback(len(fetched_posts), total_posts_count)
 
@@ -230,7 +231,6 @@ def get_all_posts(
                 page += 1
                 time.sleep(0.2)
 
-            # 确保进度条在循环结束后显示为100%
             if progress_callback:
                 progress_callback(total_posts_count, total_posts_count)
 
@@ -245,8 +245,8 @@ def get_all_posts(
                 )
 
         except (
-            requests.exceptions.RequestException,
-            cloudscraper.exceptions.CloudflareException,
+                requests.exceptions.RequestException,
+                cloudscraper.exceptions.CloudflareException,
         ) as e:
             print(f"\n网络请求或解析错误: {e}")
             if isinstance(e, cloudscraper.exceptions.CloudflareException):
@@ -259,14 +259,24 @@ def get_all_posts(
     return all_posts_raw
 
 
-def generate_prompt(post_id, user_credit_history):
+def generate_prompt(topic_id, user_credit_history):
+    """根据模板和用户输入生成最终的prompt文件。"""
     template_path = get_internal_path("prompt_template.md")
-    with open(template_path, "r", encoding="utf-8") as f:
-        prompt_template = f.read()
-        prompt = prompt_template.replace("{{user_credit_history}}", user_credit_history)
-        if not os.path.exists(CACHE_DIR):
-            os.makedirs(CACHE_DIR)
+    try:
+        with open(template_path, "r", encoding="utf-8") as f:
+            prompt_template = f.read()
+    except IOError as e:
+        print(f"错误：无法读取prompt模板文件: {e}")
+        return
+
+    prompt = prompt_template.replace("{{user_credit_history}}", user_credit_history)
+    if not os.path.exists(CACHE_DIR):
+        os.makedirs(CACHE_DIR)
+
+    try:
         with open(
-            os.path.join(CACHE_DIR, f"{post_id}_prompt.md"), "w", encoding="utf-8"
+                os.path.join(CACHE_DIR, f"{topic_id}_prompt.md"), "w", encoding="utf-8"
         ) as f2:
             f2.write(prompt)
+    except IOError as e:
+        print(f"错误：无法写入prompt文件: {e}")
