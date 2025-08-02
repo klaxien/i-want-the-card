@@ -50,8 +50,12 @@ jobs:
       - name: Prepare artifact directory
         shell: bash
         run: |
+          # 0. 清空不需要的release
+          rm -rf dist/NiTanPreapproval
+
           # 1. 创建最终的文件夹
           mkdir NiTanPreapproval
+          
           
           # 2. 将构建好的应用移动到新文件夹中
           #    在 Windows 上, mv dist/NiTanPreapproval.exe NiTanPreapproval/
