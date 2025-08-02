@@ -27,7 +27,6 @@ jobs:
       - name: Install dependencies from frozen requirements
         run: |
           python -m pip install --upgrade pip
-          # This now installs PyInstaller and all its dependencies
           pip install -r requirements.txt
 
       - name: Build with PyInstaller on Windows
@@ -48,8 +47,29 @@ jobs:
             --add-data "prompt_template.md:." \
             run.py
 
+      - name: Prepare artifact directory
+        run: |
+          # 1. 创建最终的文件夹
+          mkdir NiTanPreapproval
+          
+          # 2. 将构建好的应用移动到新文件夹中
+          #    在 Windows 上, mv dist/NiTanPreapproval.exe NiTanPreapproval/
+          #    在 macOS 上, mv dist/NiTanPreapproval.app NiTanPreapproval/
+          #    使用通配符 * 可以同时兼容两种平台
+          rm -rf dist/NiTanPreapproval
+          mv dist/NiTanPreapproval* NiTanPreapproval/
+          
+          # 3. 将配置文件也复制到新文件夹中
+          cp config.yaml NiTanPreapproval/
+          
+          # 4. (可选) 打印出最终文件夹的内容, 方便调试
+          echo "Final contents of the artifact directory:"
+          ls -la NiTanPreapproval/
+
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
+          # 上传的 zip 文件名
           name: NiTanPreapproval-${{ runner.os }}
-          path: dist/
+          # 需要打包上传的文件夹路径
+          path: NiTanPreapproval/
