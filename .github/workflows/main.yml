@@ -1,0 +1,52 @@
+name: Build Python Application
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest]
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v3
+      with:
+        python-version: '3.x'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyinstaller
+        pip install -r requirements.txt
+
+    - name: Build with PyInstaller on Windows
+      if: runner.os == 'Windows'
+      run: |
+        pyinstaller run.py --name "NiTanPreapproval" --onefile --windowed `
+        --icon=resources\icon-windows.ico `
+        --add-data "config.yaml;." `
+        --add-data "prompt_template.md;."
+
+    - name: Build with PyInstaller on macOS
+      if: runner.os == 'macOS'
+      run: |
+        pyinstaller --name "NiTanPreapproval" \
+          --windowed \
+          --icon resources/icon-mac.icns \
+          --add-data "config.yaml:." \
+          --add-data "prompt_template.md:." \
+          run.py
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: NiTanPreapproval-${{ runner.os }}
+        path: dist/
