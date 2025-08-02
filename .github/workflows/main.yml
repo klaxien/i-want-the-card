@@ -56,7 +56,6 @@ jobs:
           #    在 Windows 上, mv dist/NiTanPreapproval.exe NiTanPreapproval/
           #    在 macOS 上, mv dist/NiTanPreapproval.app NiTanPreapproval/
           #    使用通配符 * 可以同时兼容两种平台
-          rm -rf dist/NiTanPreapproval
           mv dist/NiTanPreapproval* NiTanPreapproval/
           
           # 3. 将配置文件也复制到新文件夹中
