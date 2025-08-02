@@ -11,7 +11,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [windows-latest, macos-latest]
+        os: [ windows-latest, macos-latest ]
 
     steps:
       - name: Checkout repository
@@ -48,25 +48,33 @@ jobs:
             run.py
 
       - name: Prepare artifact directory
+        # Use bash shell for cross-platform compatibility with if statements
         shell: bash
         run: |
-          # 0. 清空不需要的release
-          rm -rf dist/NiTanPreapproval
-
-          # 1. 创建最终的文件夹
+          # --- DEBUGGING STEP ---
+          # First, let's see what PyInstaller actually created in the 'dist' folder.
+          echo "Listing contents of dist directory before processing:"
+          ls -R dist
+          
+          # 1. Create a clean, final directory for the artifact
+          rm -rf NiTanPreapproval
           mkdir NiTanPreapproval
           
+          # 2. Move ONLY the desired artifact based on the operating system
+          if [[ "${{ runner.os }}" == "macOS" ]]; then
+            echo "Processing macOS build..."
+            # On macOS, move the .app bundle, which is the desired application
+            mv dist/NiTanPreapproval.app NiTanPreapproval/
+          elif [[ "${{ runner.os }}" == "Windows" ]]; then
+            echo "Processing Windows build..."
+            # On Windows, move the .exe file
+            mv dist/NiTanPreapproval.exe NiTanPreapproval/
+          fi
           
-          # 2. 将构建好的应用移动到新文件夹中
-          #    在 Windows 上, mv dist/NiTanPreapproval.exe NiTanPreapproval/
-          #    在 macOS 上, mv dist/NiTanPreapproval.app NiTanPreapproval/
-          #    使用通配符 * 可以同时兼容两种平台
-          mv dist/NiTanPreapproval* NiTanPreapproval/
-          
-          # 3. 将配置文件也复制到新文件夹中
+          # 3. Copy the configuration file into the final directory
           cp config.yaml NiTanPreapproval/
           
-          # 4. (可选) 打印出最终文件夹的内容, 方便调试
+          # 4. (Optional) Print the final contents for debugging
           echo "Final contents of the artifact directory:"
           ls -la NiTanPreapproval/
 
