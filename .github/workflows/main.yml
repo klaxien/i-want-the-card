@@ -50,6 +50,7 @@ jobs:
             --icon resources/icon-mac.icns \
             --add-data "config.yaml:." \
             --add-data "prompt_template.md:." \
+            --upx-dir /usr/local/bin/ \
             run.py
 
       - name: Upload Artifact
