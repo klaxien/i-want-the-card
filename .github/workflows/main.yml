@@ -14,39 +14,46 @@ jobs:
         os: [windows-latest, macos-latest]
 
     steps:
-    - uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v3
-      with:
-        python-version: '3.x'
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          # Using a stable, recent version is often best for CI
+          # If you must use 3.13, you can specify '3.13'
+          python-version: '3.12'
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install pyinstaller
-        pip install -r requirements.txt
+      - name: Install UPX for compression (macOS only)
+        if: runner.os == 'macOS'
+        run: brew install upx
 
-    - name: Build with PyInstaller on Windows
-      if: runner.os == 'Windows'
-      run: |
-        pyinstaller run.py --name "NiTanPreapproval" --onefile --windowed `
-        --icon=resources\icon-windows.ico `
-        --add-data "config.yaml;." `
-        --add-data "prompt_template.md;."
+      - name: Install dependencies from frozen requirements
+        run: |
+          python -m pip install --upgrade pip
+          # This now installs PyInstaller and all its dependencies
+          pip install -r requirements.txt
 
-    - name: Build with PyInstaller on macOS
-      if: runner.os == 'macOS'
-      run: |
-        pyinstaller --name "NiTanPreapproval" \
-          --windowed \
-          --icon resources/icon-mac.icns \
-          --add-data "config.yaml:." \
-          --add-data "prompt_template.md:." \
-          run.py
+      - name: Build with PyInstaller on Windows
+        if: runner.os == 'Windows'
+        run: |
+          pyinstaller run.py --name "NiTanPreapproval" --onefile --windowed `
+          --icon=resources\icon-windows.ico `
+          --add-data "config.yaml;." `
+          --add-data "prompt_template.md;."
 
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: NiTanPreapproval-${{ runner.os }}
-        path: dist/
+      - name: Build with PyInstaller on macOS (with UPX)
+        if: runner.os == 'macOS'
+        run: |
+          pyinstaller --name "NiTanPreapproval" \
+            --windowed \
+            --icon resources/icon-mac.icns \
+            --add-data "config.yaml:." \
+            --add-data "prompt_template.md:." \
+            run.py
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: NiTanPreapproval-${{ runner.os }}
+          path: dist/
