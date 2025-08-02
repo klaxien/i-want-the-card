@@ -24,10 +24,6 @@ jobs:
           # If you must use 3.13, you can specify '3.13'
           python-version: '3.12'
 
-      - name: Install UPX for compression (macOS only)
-        if: runner.os == 'macOS'
-        run: brew install upx
-
       - name: Install dependencies from frozen requirements
         run: |
           python -m pip install --upgrade pip
@@ -50,7 +46,6 @@ jobs:
             --icon resources/icon-mac.icns \
             --add-data "config.yaml:." \
             --add-data "prompt_template.md:." \
-            --upx-dir /usr/local/bin/ \
             run.py
 
       - name: Upload Artifact
